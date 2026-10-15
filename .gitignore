@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.log
+*.tmp
+requirements-*.lock.txt
+
+logs/
+.env.*

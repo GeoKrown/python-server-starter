@@ -1,0 +1,11 @@
+Verification: 2026-10-15
+- Local Python unit tests: 6 passed (mocked subprocess/venv operations).
+- Local PowerShell parser and release-selection tests: passed.
+- Online plan selected Python 3.15.0 x64 from python.org.
+- User-supplied Windows server log confirms Python 3.15.0 x64 installation,
+  base profile installation, pip check, all 31 imports, Chromium launch,
+  and successful lock snapshot creation.
+- Initial per-user installer failed with code 1625; retry from an elevated
+  PowerShell completed. The exact blocking policy was not established.
+- Extended all profile: not installed or runtime-tested.
+- These checks do not establish compatibility with every Windows Server release.
