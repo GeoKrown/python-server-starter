@@ -4,7 +4,40 @@
 
 ## Запуск на новому сервері
 
-Скопіюйте всю папку на сервер. Відкрийте PowerShell у цій папці:
+На сервері відкрийте **Windows PowerShell від імені адміністратора** під тим користувачем, який працюватиме з Python (Пуск → PowerShell → Запуск від імені адміністратора). Вставте весь блок нижче. Python і Git заздалегідь не потрібні.
+
+Команда завантажує поточну версію цього репозиторію з GitHub, розпаковує її на робочий стіл і запускає встановлення. Якщо папка вже існує, вона зупиниться без перезапису ваших файлів.
+
+```powershell
+$ErrorActionPreference = 'Stop'
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+$starterRoot = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Python-Server-Starter'
+if (Test-Path -LiteralPath $starterRoot) {
+    throw "Папка вже існує: $starterRoot. Для повторного запуску використайте setup.ps1 з наявної папки."
+}
+$starterZip = Join-Path ([IO.Path]::GetTempPath()) ('python-starter-' + [guid]::NewGuid().ToString('N') + '.zip')
+try {
+    Invoke-WebRequest 'https://github.com/GeoKrown/python-server-starter/archive/refs/heads/main.zip' -OutFile $starterZip -UseBasicParsing -TimeoutSec 120
+    Expand-Archive -LiteralPath $starterZip -DestinationPath $starterRoot
+    $starterProject = Join-Path $starterRoot 'python-server-starter-main'
+    Set-Location -LiteralPath $starterProject
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $starterProject 'setup.ps1')
+    if ($LASTEXITCODE -ne 0) { throw "Встановлення не завершено. Перегляньте помилку вище; файли залишено в $starterProject" }
+} finally {
+    if (Test-Path -LiteralPath $starterZip) { Remove-Item -LiteralPath $starterZip -Force }
+}
+```
+
+Очікуваний результат: `No broken requirements found`, `Imports OK: 31`, `Chromium OK` та `SUCCESS`. Якщо запускали через інший обліковий запис адміністратора, робочий стіл і встановлення належатимуть саме цьому обліковому запису.
+
+Після встановлення перевірити середовище без повторного завантаження пакетів:
+
+```powershell
+$starterProject = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Python-Server-Starter\python-server-starter-main'
+& "$starterProject\.venv\Scripts\python.exe" "$starterProject\install_packages.py" --check
+```
+
+Якщо вже скопіювали проєкт вручну або хочете повторити встановлення після усунення помилки, відкрийте PowerShell у папці, де лежить `setup.ps1`, і виконайте:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
