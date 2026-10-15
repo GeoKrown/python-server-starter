@@ -1,5 +1,5 @@
 Verification: 2026-10-15
-- Local Python unit tests: 6 passed (mocked subprocess/venv operations).
+- Local Python unit tests: 10 passed (mocked subprocess/venv operations).
 - Local PowerShell parser and release-selection tests: passed.
 - Online plan selected Python 3.15.0 x64 from python.org.
 - User-supplied Windows server log confirms Python 3.15.0 x64 installation,
@@ -9,3 +9,4 @@ Verification: 2026-10-15
   PowerShell completed. The exact blocking policy was not established.
 - Extended all profile: not installed or runtime-tested.
 - These checks do not establish compatibility with every Windows Server release.
+- Review regression coverage: new manifest packages with an existing lock, invalid manifest before environment creation, failed refresh preserving lock, and failed atomic writes cleaning temporary files.

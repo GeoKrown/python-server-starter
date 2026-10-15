@@ -33,13 +33,29 @@ def atomic_text(path, text):
 
 
 def packages(profile):
+    if profile not in {'base', 'all'}:
+        raise ValueError(f'Unknown package profile: {profile}')
     config = json.loads((ROOT / 'packages.json').read_text(encoding='utf-8'))
-    return config['base'] | (config['extra'] if profile == 'all' else {})
+    if not isinstance(config, dict):
+        raise ValueError('packages.json must contain an object.')
+    selected = {}
+    for group in ('base', 'extra') if profile == 'all' else ('base',):
+        entries = config.get(group)
+        if not isinstance(entries, dict) or not entries:
+            raise ValueError(f'Package group {group!r} must be a non-empty object.')
+        for package, module in entries.items():
+            if (not isinstance(package, str) or not package.strip()
+                    or package.startswith('-') or not isinstance(module, str)
+                    or not all(part.isidentifier() for part in module.split('.'))):
+                raise ValueError(f'Invalid package/import entry in {group!r}: {package!r}')
+        selected.update(entries)
+    return selected
 
 
 def setup(profile='base', refresh=False, skip_browser=False, check_only=False):
     if sys.version_info < (3, 12) or struct.calcsize('P') != 8:
         raise RuntimeError('Use Python 3.12 or newer, 64-bit.')
+    selected = packages(profile)
     target = ROOT / '.venv'
     marker = target / 'server-starter.json'
     python = target / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
@@ -56,12 +72,12 @@ def setup(profile='base', refresh=False, skip_browser=False, check_only=False):
         venv.EnvBuilder(with_pip=True).create(target)
         atomic_text(marker, json.dumps(fingerprint))
 
-    selected = packages(profile)
     lock = ROOT / f'requirements-{profile}-py{sys.version_info.major}{sys.version_info.minor}.lock.txt'
     if not check_only:
         run([python, '-m', 'pip', 'install', '--timeout', '60', '--retries', '2', '--upgrade', 'pip'])
         if lock.exists() and not refresh:
-            install = ['-r', lock]
+            # Keep existing pins while also installing newly added manifest entries.
+            install = ['-r', lock, *selected]
         else:
             install = [*(['--upgrade'] if refresh else []), *selected]
         # Wheels avoid unexpected compiler/toolchain installation on a fresh server.

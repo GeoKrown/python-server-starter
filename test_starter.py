@@ -69,5 +69,47 @@ class StarterTests(unittest.TestCase):
         self.assertFalse((self.root / '.venv').exists())
 
 
+    def test_invalid_manifest_creates_no_environment(self):
+        invalid = [[], {}, {'base': []}, {'base': {'requests': ''}},
+                   {'base': {'--index-url': 'requests'}}]
+        for config in invalid:
+            with self.subTest(config=config):
+                (self.root / 'packages.json').write_text(json.dumps(config))
+                with self.assertRaises(ValueError):
+                    app.setup()
+                self.assertFalse((self.root / '.venv').exists())
+
+    def test_new_manifest_package_is_installed_with_existing_lock(self):
+        with patch.object(app.venv.EnvBuilder, 'create', side_effect=self.fake_create), patch.object(app, 'run', return_value=subprocess.CompletedProcess([], 0, stdout='requests==2.32.5\n')) as run:
+            app.setup(skip_browser=True)
+            config = json.loads((self.root / 'packages.json').read_text())
+            config['base']['rich'] = 'rich'
+            (self.root / 'packages.json').write_text(json.dumps(config))
+            run.reset_mock()
+            app.setup(skip_browser=True)
+            command = run.call_args_list[1].args[0]
+            self.assertIn('-r', command)
+            self.assertIn('rich', command)
+
+    def test_failed_refresh_preserves_previous_lock(self):
+        with patch.object(app.venv.EnvBuilder, 'create', side_effect=self.fake_create), patch.object(app, 'run', return_value=subprocess.CompletedProcess([], 0, stdout='requests==2.32.5\n')):
+            app.setup(skip_browser=True)
+        lock = next(self.root.glob('*.lock.txt'))
+        previous = lock.read_bytes()
+        with patch.object(app, 'run', side_effect=subprocess.CalledProcessError(1, 'pip')):
+            with self.assertRaises(subprocess.CalledProcessError):
+                app.setup(refresh=True, skip_browser=True)
+        self.assertEqual(lock.read_bytes(), previous)
+
+    def test_atomic_write_failure_keeps_original_and_cleans_temp(self):
+        path = self.root / 'snapshot.txt'
+        path.write_text('original')
+        with patch.object(app.os, 'replace', side_effect=OSError('write denied')):
+            with self.assertRaises(OSError):
+                app.atomic_text(path, 'replacement')
+        self.assertEqual(path.read_text(), 'original')
+        self.assertEqual(list(self.root.glob('*.tmp')), [])
+
+
 if __name__ == '__main__':
     unittest.main()
